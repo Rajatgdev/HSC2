@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #14213d;
+  --paper: #f6f7f4;
+  --line: #d8dcd3;
+  --stamp: #c1361f;
+  --muted: #5a6258;
+  --good: #2e6e4e;
+}
+body { background: var(--paper); color: var(--ink); font-family: "Inter", sans-serif; }
+.font-serif-d { font-family: "Spectral", serif; }
+.font-code { font-family: "IBM Plex Mono", monospace; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

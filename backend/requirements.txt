@@ -1,0 +1,30 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch --index-url https://download.pytorch.org/whl/cpu
+fastapi>=0.115
+uvicorn[standard]
+pydantic>=2.0
+pydantic-settings
+sqlalchemy[asyncio]>=2.0
+asyncpg
+psycopg[binary]>=3.2
+pgvector
+httpx
+openai
+bm25s
+turbovec
+networkx
+pandas
+openpyxl
+numpy
+scipy
+transformers
+torch
+sentencepiece
+alembic
+
+# dev
+pytest
+pytest-asyncio
+ruff
+mypy
+pymupdf

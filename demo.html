@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HS Ledger — TARIC Classifier v2 (UI demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14213D; --paper:#F6F7F4; --line:#D8DCD3; --stamp:#C1361F;
+  --muted:#5A6258; --card:#FFFFFF; --good:#2E6E4E;
+  --mono:'IBM Plex Mono',monospace; --serif:'Spectral',serif; --sans:'Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+a{color:inherit}
+.wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+header{border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:10}
+.hd{display:flex;align-items:baseline;justify-content:space-between;padding:18px 0}
+.brand{font-family:var(--serif);font-weight:700;font-size:20px;letter-spacing:.01em}
+.brand small{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--muted);margin-left:10px;letter-spacing:.08em}
+.corridor-chip{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.corridor-chip b{color:var(--ink)}
+
+/* layout: main + spine */
+.layout{display:grid;grid-template-columns:1fr 280px;gap:48px;padding:40px 0 80px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.spine{position:static;order:-1;margin-bottom:8px}}
+
+/* ── Code Spine (signature) ── */
+.spine{position:sticky;top:96px;align-self:start}
+.spine h3{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:14px}
+.digits{display:flex;gap:6px;flex-wrap:wrap}
+.pair{display:flex;gap:3px}
+.digit{width:30px;height:42px;border:1px solid var(--line);border-radius:4px;background:var(--card);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:19px;font-weight:600;
+  color:var(--line);transition:all .45s cubic-bezier(.2,.8,.2,1)}
+.digit.filled{color:var(--ink);border-color:var(--ink);transform:translateY(-2px);box-shadow:0 2px 0 var(--ink)}
+.digit.pending{border-style:dashed}
+.spine-rows{margin-top:18px;display:flex;flex-direction:column;gap:0}
+.srow{display:grid;grid-template-columns:14px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.srow .tick{font-family:var(--mono);color:var(--line)}
+.srow.done .tick{color:var(--good)} .srow.done{color:var(--ink)}
+.srow b{font-family:var(--mono);font-weight:500}
+.spine .legal{margin-top:16px;font-size:11.5px;color:var(--muted);line-height:1.5}
+
+/* ── Steps ── */
+.step{display:none;animation:rise .4s ease both}
+.step.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--stamp);margin-bottom:10px}
+h1{font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.2;margin-bottom:8px}
+.sub{color:var(--muted);margin-bottom:28px;max-width:54ch}
+
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+input,select,textarea{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:6px;background:var(--card);
+  font-family:var(--sans);font-size:15px;color:var(--ink)}
+textarea{font-family:var(--sans);resize:vertical;min-height:120px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--ink);outline-offset:-1px;border-color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+.field{margin-bottom:16px}
+.hint{font-size:12px;color:var(--muted);margin-top:5px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:none;border-radius:6px;
+  padding:12px 22px;font-family:var(--sans);font-size:15px;font-weight:600;cursor:pointer}
+.btn:hover{background:#1d2e54}.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--ink)}
+.actions{display:flex;gap:12px;margin-top:24px;align-items:center}
+
+/* good-description coach */
+.coach{border:1px dashed var(--line);border-radius:8px;padding:14px 16px;margin:14px 0 0;background:var(--card)}
+.coach h4{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.coach ul{list-style:none}
+.coach li{font-size:13px;padding:3px 0;color:var(--muted)}
+.coach li.ok{color:var(--good)}
+.coach li::before{content:"○ ";font-family:var(--mono)}
+.coach li.ok::before{content:"● "}
+
+/* loading */
+.loading{display:none;padding:40px 0}
+.loading.on{display:block}
+.loadline{font-family:var(--mono);font-size:13px;color:var(--muted);padding:6px 0;opacity:0;animation:rise .4s ease both}
+.loadline::before{content:"→ ";color:var(--stamp)}
+
+/* HS6 result card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px;margin-bottom:16px}
+.card.selected{border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
+.code-lg{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:.06em}
+.path{font-size:12.5px;color:var(--muted);font-family:var(--mono);margin:4px 0 12px}
+.conf{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  border:1.5px solid;border-radius:3px;padding:3px 9px;transform:rotate(-2deg)}
+.conf.high{color:var(--good);border-color:var(--good)}
+.conf.medium{color:#9A6B12;border-color:#9A6B12}
+.conf.low{color:var(--stamp);border-color:var(--stamp)}
+.expl{margin-top:12px;font-size:14px}
+.gri{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:10px}
+
+details.prov{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+details.prov summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+details.prov summary:hover{color:var(--ink)}
+.prov-grid{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.ev{font-size:12.5px;font-family:var(--mono);color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.ev .src{font-size:10px;border:1px solid var(--line);border-radius:3px;padding:1px 6px;letter-spacing:.08em;text-transform:uppercase}
+.ev .src.bti{color:var(--stamp);border-color:var(--stamp)}
+.alt{margin-top:8px}
+.alt button{background:none;border:none;font-family:var(--mono);font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;padding:4px 0;text-align:left}
+.alt button:hover{color:var(--ink)}
+
+/* narrowing */
+.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:14px}
+.q .why{font-size:12px;color:var(--muted);margin:4px 0 12px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{border:1px solid var(--line);border-radius:99px;background:var(--paper);padding:8px 16px;font-size:14px;cursor:pointer}
+.opt:hover{border-color:var(--ink)}
+.opt.sel{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* result */
+.result-card{position:relative;background:var(--card);border:1.5px solid var(--ink);border-radius:10px;padding:26px;margin-bottom:18px}
+.stamp{position:absolute;top:18px;right:18px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  border:2px solid;border-radius:4px;padding:6px 12px;transform:rotate(3deg)}
+.stamp.high{color:var(--good);border-color:var(--good)}
+.stamp.medium{color:#9A6B12;border-color:#9A6B12}
+.measure{display:flex;justify-content:space-between;font-size:13px;font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line)}
+.measures h4,.fb h4{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+.fb{margin-top:8px}
+.fb .opts{margin-top:4px}
+.note{background:#FBF6EC;border:1px solid #E8D9B8;border-radius:8px;padding:12px 16px;font-size:13.5px;margin-bottom:18px}
+.copybtn{background:none;border:1px solid var(--line);border-radius:5px;font-family:var(--mono);font-size:12px;padding:5px 10px;cursor:pointer;color:var(--muted)}
+.copybtn:hover{border-color:var(--ink);color:var(--ink)}
+footer{border-top:1px solid var(--line);padding:20px 0;font-size:12px;color:var(--muted)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header><div class="wrap hd">
+  <div class="brand">HS Ledger <small>TARIC · CN 2026 · EBTI</small></div>
+  <div class="corridor-chip" id="chip"></div>
+</div></header>
+
+<div class="wrap layout">
+<main>
+
+  <!-- STEP 1: corridor -->
+  <section class="step active" id="s1">
+    <div class="eyebrow">Entry 01 · Trade corridor</div>
+    <h1>Where is this shipment moving?</h1>
+    <p class="sub">Origin and destination decide which duties, preferences and restrictions apply to the final code.</p>
+    <div class="row">
+      <div><label for="origin">Origin country</label>
+        <select id="origin"><option value="CN">China (CN)</option><option value="IN">India (IN)</option><option value="US">United States (US)</option><option value="GB">United Kingdom (GB)</option><option value="VN">Vietnam (VN)</option></select></div>
+      <div><label for="dest">Destination country</label>
+        <select id="dest"><option value="IE">Ireland (IE)</option><option value="DE">Germany (DE)</option><option value="FR">France (FR)</option><option value="NL">Netherlands (NL)</option></select></div>
+    </div>
+    <div class="field"><label for="inco">Incoterm <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <select id="inco"><option value="">Not specified</option><option>EXW</option><option>FOB</option><option>CIF</option><option>DDP</option><option>DAP</option></select>
+      <p class="hint">Used for context only — it doesn't change the classification.</p></div>
+    <div class="actions"><button class="btn" onclick="go(2)">Describe the product →</button></div>
+  </section>
+
+  <!-- STEP 2: description -->
+  <section class="step" id="s2">
+    <div class="eyebrow">Entry 02 · Product declaration</div>
+    <h1>Describe the goods as if to a customs officer.</h1>
+    <p class="sub">Material, function, how it's made, and how it's sold. The checklist fills as your description gets classifiable.</p>
+    <label for="desc">Product description</label>
+    <textarea id="desc" placeholder="e.g. Men's hooded jacket, outer shell 100% woven polyester, padded with polyester wadding, water-resistant coating, packed individually for retail sale" oninput="coach()"></textarea>
+    <div class="coach"><h4>Classifiability check</h4>
+      <ul>
+        <li id="c1">Material or composition (e.g. "100% polyester", "stainless steel")</li>
+        <li id="c2">Function or use (what it does / who uses it)</li>
+        <li id="c3">Processing state (woven / knitted / assembled / raw…)</li>
+        <li id="c4">Packaging (retail vs bulk)</li>
+      </ul></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="go(1)">← Back</button>
+      <button class="btn" id="classifyBtn" onclick="classify()" disabled>Classify →</button>
+    </div>
+    <div class="loading" id="load">
+      <div class="loadline" style="animation-delay:.1s">Expanding description into nomenclature terms…</div>
+      <div class="loadline" style="animation-delay:.9s">Searching 11,649 CN 2026 entries + EBTI rulings (BM25 + dense)…</div>
+      <div class="loadline" style="animation-delay:1.8s">Reranking candidates against chapter notes…</div>
+      <div class="loadline" style="animation-delay:2.6s">Applying General Rules of Interpretation…</div>
+    </div>
+  </section>
+
+  <!-- STEP 3: HS6 -->
+  <section class="step" id="s3">
+    <div class="eyebrow">Entry 03 · Universal subheading</div>
+    <h1>HS6 selected — and here's the evidence.</h1>
+    <p class="sub">This 6-digit code is recognized worldwide. Check the reasoning; pick an alternative if it's wrong.</p>
+
+    <div class="card selected">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div><div class="code-lg">62 02 40</div>
+          <div class="path">Section XI › Ch. 62 Apparel, not knitted › 6202 Coats &amp; jackets, women's… › 620240 Of man-made fibres</div></div>
+        <span class="conf high">High confidence</span>
+      </div>
+      <p class="expl">The garment is a padded outer jacket of woven (not knitted) man-made fibre fabric. GRI 1 places woven outerwear in heading 6202; the 100% polyester shell fixes the subheading at 620240. The water-resistant coating does not shift it to plastics (Ch. 39) because the textile character prevails per Note 2 to Ch. 59.</p>
+      <div class="gri">Rule applied: GRI 1 · Reranker score 0.91</div>
+
+      <details class="prov"><summary>Why this code — retrieval evidence (7 sources)</summary>
+        <div class="prov-grid">
+          <div class="ev"><span class="src">BM25 #1</span> 62024010 — Anoraks, wind-jackets, of man-made fibres</div>
+          <div class="ev"><span class="src">Dense #1</span> 620240 — Of man-made fibres (women's/girls' jackets)</div>
+          <div class="ev"><span class="src bti">BTI</span> IEBTI-2024-0381 — "Padded polyester jacket, retail" → 6202401090</div>
+          <div class="ev"><span class="src bti">BTI</span> DEBTI-2023-1142 — "Wind-cheater, woven PES shell" → 6202401010</div>
+          <div class="ev"><span class="src">Dense #4</span> 610130 — (rejected: knitted heading, garment is woven)</div>
+          <div class="ev"><span class="src">BM25 #6</span> Ch. 62 Note 1 — applies only to made-up articles, not knitted</div>
+          <div class="ev"><span class="src">BM25 #9</span> Ch. 59 Note 2 — coated fabrics: textile character test</div>
+        </div>
+      </details>
+      <div class="alt">
+        <button onclick="alert('Demo: would re-run narrowing under 610130')">Disagree? Use 610130 — would apply if the fabric were knitted, not woven</button>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" onclick="go(2)">← Edit description</button>
+      <button class="btn" onclick="go(4)">Narrow to 10 digits →</button>
+    </div>
+  </section>
+
+  <!-- STEP 4: narrowing -->
+  <section class="step" id="s4">
+    <div class="eyebrow">Entry 04 · Narrowing</div>
+    <h1>Two answers separate the remaining codes.</h1>
+    <p class="sub">Each question exists because the candidate codes genuinely differ on it — nothing you already told us is re-asked.</p>
+
+    <div class="q"><label>What is the garment's weight per square metre of fabric?</label>
+      <p class="why">Why it matters: splits 6202 40 10 (lightweight, ≤ specified weight) from 6202 40 90 — different duty lines.</p>
+      <div class="opts" data-q="weight">
+        <button class="opt">Light (≈ raincoat shell)</button><button class="opt">Medium (everyday jacket)</button><button class="opt">Heavy (winter parka)</button><button class="opt">Not sure / Other</button>
+      </div></div>
+    <div class="q"><label>Is the jacket cut for women/girls or is it unisex?</label>
+      <p class="why">Why it matters: heading 6201 vs 6202 — men's and women's woven jackets sit in different headings.</p>
+      <div class="opts" data-q="gender">
+        <button class="opt">Women's / girls'</button><button class="opt">Men's / boys'</button><button class="opt">Unisex</button><button class="opt">Not sure / Other</button>
+      </div></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="go(3)">← Back</button>
+      <button class="btn" id="finishBtn" onclick="finish()" disabled>Get TARIC10 code →</button>
+    </div>
+  </section>
+
+  <!-- STEP 5: result -->
+  <section class="step" id="s5">
+    <div class="eyebrow">Entry 05 · Final classification</div>
+    <h1>Filed and stamped.</h1>
+    <p class="sub">Primary suggestion with applicable measures for your corridor. The evidence trail above stays in the session log.</p>
+
+    <div class="result-card">
+      <span class="stamp high">Classified · High</span>
+      <div class="code-lg">6202 40 10 90 <button class="copybtn" onclick="navigator.clipboard&&navigator.clipboard.writeText('6202401090');this.textContent='Copied'">Copy</button></div>
+      <div class="path">Anoraks, wind-jackets &amp; similar, of man-made fibres, of a weight ≤ 1 kg per garment — Other</div>
+      <p class="expl">GRI 1 + GRI 6: the padded woven polyester jacket for women, light-to-medium weight, retail-packed, matches the terms of 6202 40 10. BTI IEBTI-2024-0381 classified a near-identical product to this exact code.</p>
+      <div class="gri">BTI precedent: IEBTI-2024-0381 · GRI 1, GRI 6</div>
+      <div class="measures"><h4>Measures · CN → IE</h4>
+        <div class="measure"><span>Third-country duty (erga omnes)</span><span>12.0 %</span></div>
+        <div class="measure"><span>VAT (standard, IE)</span><span>23 %</span></div>
+        <div class="measure"><span>Import control — textiles labelling</span><span>Doc. code Y900</span></div>
+      </div>
+    </div>
+    <div class="note">Runner-up: <b style="font-family:var(--mono)">6202 40 90 10</b> if the garment exceeds 1 kg — confirm the unit weight before filing. Genuinely unsure? Apply for a Binding Tariff Information ruling: it's free and legally binding for 3 years.</div>
+
+    <div class="fb"><h4>Was this correct?</h4>
+      <div class="opts">
+        <button class="opt" onclick="this.classList.add('sel')">✓ Correct</button>
+        <button class="opt" onclick="this.classList.add('sel')">Partially</button>
+        <button class="opt" onclick="this.classList.add('sel')">Wrong</button>
+      </div></div>
+    <div class="actions"><button class="btn ghost" onclick="location.reload()">Classify another product</button></div>
+  </section>
+
+</main>
+
+<!-- ── Code Spine ── -->
+<aside class="spine">
+  <h3>Commodity code</h3>
+  <div class="digits" id="digits"></div>
+  <div class="spine-rows" id="rows"></div>
+  <p class="legal">HS6 is recognized worldwide. Digits 7–8 are the EU Combined Nomenclature; 9–10 are TARIC-specific. Final liability rests with the declarant — consider a BTI for binding certainty.</p>
+</aside>
+</div>
+
+<footer><div class="wrap">HS Ledger v2 · grounded in CN 2026 + EBTI 2020–2026 · every suggestion carries its retrieval evidence</div></footer>
+
+<script>
+const DIGITS=['6','2','0','2','4','0','1','0','9','0'];
+const STAGES=[
+ {label:'Corridor set', code:'', n:0},
+ {label:'Description filed', code:'', n:0},
+ {label:'HS6 — universal subheading', code:'620240', n:6},
+ {label:'Narrowing answers', code:'620240', n:6},
+ {label:'TARIC10 — final code', code:'6202401090', n:10},
+];
+const rowsDef=[['Chapter (2)','62 — Apparel, not knitted'],['Heading (4)','6202 — Coats & jackets'],['HS6 (6)','620240 — Man-made fibres'],['CN8 (8)','62024010 — ≤1 kg'],['TARIC10','6202401090 — Other']];
+const digitsEl=document.getElementById('digits');
+for(let p=0;p<5;p++){const pair=document.createElement('div');pair.className='pair';
+ for(let i=0;i<2;i++){const d=document.createElement('div');d.className='digit pending';d.dataset.i=p*2+i;d.textContent='·';pair.appendChild(d);}digitsEl.appendChild(pair);}
+const rowsEl=document.getElementById('rows');
+rowsDef.forEach((r,i)=>{const div=document.createElement('div');div.className='srow';div.dataset.r=i;
+ div.innerHTML=`<span class="tick">○</span><span><b>${r[0]}</b><br>${r[1]}</span>`;rowsEl.appendChild(div);});
+
+let step=1;
+function spine(n){
+  document.querySelectorAll('.digit').forEach(d=>{
+    const i=+d.dataset.i;
+    if(i<n){d.textContent=DIGITS[i];d.className='digit filled';}
+    else{d.textContent='·';d.className='digit pending';}
+  });
+  document.querySelectorAll('.srow').forEach(r=>{
+    const need=[2,4,6,8,10][+r.dataset.r];
+    r.classList.toggle('done',n>=need);
+    r.querySelector('.tick').textContent=n>=need?'●':'○';
+  });
+}
+function go(n){
+  step=n;
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  spine(STAGES[n-1].n);
+  document.getElementById('chip').innerHTML=
+    `<b>${origin.value}</b> → <b>${dest.value}</b>${inco.value?' · '+inco.value:''}`;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function coach(){
+  const t=desc.value.toLowerCase();
+  const checks={c1:/polyester|cotton|steel|wool|plastic|leather|aluminium|nylon|%/,
+    c2:/jacket|use|for |wear|tool|valve|machine|device|garment|hood/,
+    c3:/woven|knitted|assembled|raw|padded|coated|stitched|moulded/,
+    c4:/retail|bulk|packed|individually|carton/};
+  let ok=0;
+  for(const[id,re]of Object.entries(checks)){const hit=re.test(t);document.getElementById(id).classList.toggle('ok',hit);if(hit)ok++;}
+  classifyBtn.disabled=!(desc.value.length>=10);
+}
+function classify(){
+  classifyBtn.disabled=true;
+  document.getElementById('load').classList.add('on');
+  setTimeout(()=>{document.getElementById('load').classList.remove('on');classifyBtn.disabled=false;go(3);},3400);
+}
+let answered=new Set();
+document.querySelectorAll('.opts[data-q]').forEach(g=>{
+  g.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{
+    g.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));
+    o.classList.add('sel');answered.add(g.dataset.q);
+    finishBtn.disabled=answered.size<2;
+  });
+});
+function finish(){go(5);}
+go(1);
+</script>
+</body>
+</html>
